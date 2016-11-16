@@ -67,5 +67,27 @@ module.exports = {
             })
         }
 
+    },
+    deleteGet: (req, res)=>{
+        let id = req.params.id;
+        Article.findById(id).then(article => {
+            res.render('article/delete', article)
+        })
+    },
+    deletePost: (req, res) => {
+        let id = req.params.id;
+        Article.findOneAndRemove({_id:id}).populate('author').then(article => {
+            let index = article.author.articles.indexOf(id);
+            if (index<0){
+                let errorMsg ='Article not found in author\'s articles!';
+                res.render('article/delete', {error:errorMsg});
+            }
+            else {
+                article.author.articles.splice(index, 1);
+                article.author.save().then(user => {
+                    res.redirect('/');
+                })
+            }
+        })
     }
 };
