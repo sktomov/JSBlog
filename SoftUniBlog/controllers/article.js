@@ -38,20 +38,49 @@ module.exports = {
     details: (req, res) => {
         let id = req.params.id;
 
-        Article.findById(id).populate('author')
-            .then(article => {
-                res.render('article/details', article)
-            })
+        Article.findById(id).populate('author').then(article => {
+                if(!req.user){
+                    res.render('article/details', {article: article, isUserAuthorized: false});
+                    return;
+                }
+                req.user.isInRole('Admin').then(isAdmin => {
+                    let isUserAuthorized = isAdmin || req.user.isAuthor(article);
+                    res.render('article/details', {article: article, isUserAuthorized: isUserAuthorized});
+                });
+
+        });
     },
     editGet: function (req, res) {
         let id = req.params.id;
+
+        if(!req.isAuthenticated()){
+            let returnUrl = `/article/edit/${id}`;
+            req.session.returnUrl = returnUrl;
+            res.redirect('/user/login');
+            return;
+
+        }
         Article.findById(id).then(article =>{
-            res.render('article/edit', article)
+            req.user.isInRole('Admin').then(isAdmin => {
+                if(!isAdmin &&!req.user.isAuthor(article)){
+                    res.redirect('/');
+                    return;
+                }else {
+                    res.render('article/edit', article)
+                }
+            })
         });
 
     },
     editPost: (req, res) => {
         let id = req.params.id;
+        if(!req.isAuthenticated()){
+            let returnUrl = `/article/edit/${id}`;
+            req.session.returnUrl = returnUrl;
+            res.redirect('/user/login');
+            return;
+
+        }
         let articleArgs = req.body;
         let errorMsg = '';
         if (!articleArgs.title){
@@ -70,12 +99,37 @@ module.exports = {
     },
     deleteGet: (req, res)=>{
         let id = req.params.id;
+
+        if(!req.isAuthenticated()){
+            let returnUrl = `/article/delete/${id}`;
+            req.session.returnUrl = returnUrl;
+            res.redirect('/user/login');
+            return;
+
+        }
         Article.findById(id).then(article => {
-            res.render('article/delete', article)
+            let currentUser = req.user;
+            currentUser.isInRole('Admin').then(isAdmin => {
+                if(!isAdmin && !currentUser.isAuthor(article)){
+                    res.redirect('/');
+                }else{
+                    res.render('article/delete', article)
+                }
+            })
+
         })
     },
     deletePost: (req, res) => {
         let id = req.params.id;
+
+        if(!req.isAuthenticated()){
+            let returnUrl = `/article/delete/${id}`;
+            req.session.returnUrl = returnUrl;
+            res.redirect('/user/login');
+            return;
+
+        }
+
         Article.findOneAndRemove({_id:id}).populate('author').then(article => {
             let index = article.author.articles.indexOf(id);
             if (index<0){
