@@ -47,7 +47,7 @@ module.exports = {
                     let isUserAuthorized = isAdmin || req.user.isAuthor(article);
                     res.render('article/details', {article: article, isUserAuthorized: isUserAuthorized});
                 });
-
+a
         });
     },
     editGet: function (req, res) {
