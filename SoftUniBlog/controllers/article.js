@@ -65,10 +65,9 @@ a
                 if(!isAdmin &&!req.user.isAuthor(article)){
                     res.redirect('/');
                     return;
-                }else {
-                    res.render('article/edit', article)
                 }
-            })
+                    res.render('article/edit', article)
+            });
         });
 
     },
