@@ -25,15 +25,9 @@ module.exports = {
 
         articleArgs.author = req.user.id;
         Article.create(articleArgs).then(article => {
-            req.user.articles.push(article.id);
-            req.user.save(err => {
-                if (err) {
-                    res.redirect('/', {error: err.message});
-                } else {
+                    article.prepareInsert();
                     res.redirect('/');
-                }
             });
-        })
     },
     details: (req, res) => {
         let id = req.params.id;
@@ -130,17 +124,8 @@ a
         }
 
         Article.findOneAndRemove({_id:id}).populate('author').then(article => {
-            let index = article.author.articles.indexOf(id);
-            if (index<0){
-                let errorMsg ='Article not found in author\'s articles!';
-                res.render('article/delete', {error:errorMsg});
-            }
-            else {
-                article.author.articles.splice(index, 1);
-                article.author.save().then(user => {
-                    res.redirect('/');
-                })
-            }
+           article.prepareDelete();
+           res.redirect('/');
         })
     }
 };

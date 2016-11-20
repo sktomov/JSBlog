@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
 const encryption = require('./../utilities/encryption');
 
-
 let userSchema = mongoose.Schema(
     {
         email: {type: String, required: true, unique: true},
@@ -35,6 +34,30 @@ userSchema.method ({
         let isInRole = this.roles.indexOf(role.id) !== -1;
         return isInRole;
     })
+    },
+    prepareDelete: function () {
+      for (let role of this.roles){
+          Role.findById(role).then(role=> {
+              role.users.remove(this.id);
+              role.save();
+          })
+      }
+      let Article = mongoose.model('Article');
+      for (let article of this.articles){
+          Article.findById(article).then(article => {
+              article.prepareDelete();
+              article.remove();
+          })
+      }
+    },
+    prepareInsert: function () {
+        for (let role of this.roles){
+            Role.findById(role).then(role=> {
+                role.users.push(this.id);
+                role.save();
+            })
+        }
+        
     }
 });
 
@@ -61,15 +84,15 @@ module.exports.seedAdmin = () => {
                     roles: roles
                 };
                 User.create(user).then(user => {
-                    role.users.push(user.id);
-                    role.save((err) => {
-                        if (err) {
-                            console.log(err.message);
-                        } else {
-                            console.log('Admin seeded succesfully!');
+                    user.prepareInsert();
+                    req.logIn(user, (err)=> {
+                        if(err){
+                            res.render('user/register');
                         }
-                    });
-                })
+                        res.redirect('/');
+                      })
+                    })
+
             })
         }
     })
