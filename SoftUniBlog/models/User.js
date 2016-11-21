@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const encryption = require('./../utilities/encryption');
+const Role = require('mongoose').model('Role');
 
 let userSchema = mongoose.Schema(
     {
@@ -60,9 +61,8 @@ userSchema.method ({
         
     }
 });
-
+userSchema.set('versionKey', false);
 const User = mongoose.model('User', userSchema);
-const Role = require('mongoose').model('Role');
 
 module.exports = User;
 
@@ -88,8 +88,11 @@ module.exports.seedAdmin = () => {
                     req.logIn(user, (err)=> {
                         if(err){
                             res.render('user/register');
+                        }else{
+                            console.log('Admin seeded succesfully!');
+                            res.redirect('/');
                         }
-                        res.redirect('/');
+
                       })
                     })
 

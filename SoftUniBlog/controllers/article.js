@@ -1,8 +1,13 @@
 const Article = require('mongoose').model('Article');
+const Category = require('mongoose').model('Category');
+const Tag = require('mongoose').model('Tag');
+const initializedTags = require('./../models/Tag').initializeTags;
 
 module.exports = {
     createGet: (req, res) => {
-        res.render('article/create');
+        Category.find({}).then(categories => {
+            res.render('article/create', {categories: categories});
+        })
     },
 
     createPost: (req, res) => {
@@ -24,7 +29,10 @@ module.exports = {
         }
 
         articleArgs.author = req.user.id;
+        articleArgs.tags = [];
         Article.create(articleArgs).then(article => {
+                   let tagNames = articleArgs.tagNames.split(/\s+|,/).filter(tag=>{return tag});
+                   initializedTags(tagNames, article.id);
                     article.prepareInsert();
                     res.redirect('/');
             });
@@ -32,7 +40,7 @@ module.exports = {
     details: (req, res) => {
         let id = req.params.id;
 
-        Article.findById(id).populate('author').then(article => {
+        Article.findById(id).populate('author tags').then(article => {
                 if(!req.user){
                     res.render('article/details', {article: article, isUserAuthorized: false});
                     return;
@@ -54,13 +62,18 @@ a
             return;
 
         }
-        Article.findById(id).then(article =>{
+        Article.findById(id).populate('tags').then(article =>{
             req.user.isInRole('Admin').then(isAdmin => {
                 if(!isAdmin &&!req.user.isAuthor(article)){
                     res.redirect('/');
                     return;
                 }
+                Category.find({}).then(categories => {
+                    article.categories = categories;
+
+                    article.tagNames = article.tags.map(tag => {return tag.name});
                     res.render('article/edit', article)
+                });
             });
         });
 
@@ -84,9 +97,38 @@ a
         if(errorMsg){
             res.render('article/edit', {error:errorMsg})
         }else{
-            Article.update({_id:id}, {$set: {title: articleArgs.title, content: articleArgs.content}}).then(updateStatus =>{
-                res.redirect(`/article/details/${id}`)
-            })
+            Article.findById(id).populate('category tags').then(article => {
+                if(article.category.id !== articleArgs.category){
+                    article.category.articles.remove(article.id);
+                    article.category.save();
+                }
+                article.category = articleArgs.category;
+                article.title = articleArgs.title;
+                article.content = articleArgs.content;
+
+                let newTagNames = articleArgs.tags.split(/\s+|,/).filter(tag =>{return tag});
+
+                let oldTags = article.tags.filter(tag => {
+                    return newTagNames.indexOf(tag.name) === -1;
+                });
+                for(let tag of oldTags){
+                    tag.deleteArticle(article.id);
+                    article.deleteTag(tag.id);
+                }
+                initializedTags(newTagNames, article.id);
+                article.save((err) => {
+                    if(err){
+                        console.log(err.message);
+                    }
+                    Category.findById(article.category).then(category => {
+                        if(category.articles.indexOf(article.id) === -1){
+                            category.articles.push(article.id);
+                            category.save();
+                        }
+                        res.redirect(`/article/details/${id}`);
+                    })
+                });
+            });
         }
 
     },
@@ -100,14 +142,15 @@ a
             return;
 
         }
-        Article.findById(id).then(article => {
+        Article.findById(id).populate('category tags').then(article => {
             let currentUser = req.user;
             currentUser.isInRole('Admin').then(isAdmin => {
                 if(!isAdmin && !currentUser.isAuthor(article)){
                     res.redirect('/');
-                }else{
-                    res.render('article/delete', article)
                 }
+                    article.tagNames = article.tags.map(tag => {return tag.name});
+                    res.render('article/delete', article)
+
             })
 
         })

@@ -1,11 +1,26 @@
 const mongoose = require('mongoose');
 const Article = mongoose.model('Article');
+const Category = mongoose.model('Category');
+const User = mongoose.model('User');
+const Tag = mongoose.model('Tag');
 
 module.exports = {
     index: (req, res) => {
-        Article.find({}).limit(6).populate('author')
-            .then(articles => {
-                res.render('home/index', {articles: articles});
+        let page = req.params.page;
+        Category.find({}).then(categories => {
+                res.render('home/index', {categories: categories,});
             })
+    },
+    listCategoryArticles : (req, res) => {
+        let id = req.params.id;
+
+        Category.findById(id).populate('articles').then(category => {
+            Tag.populate(category.articles, {path: 'author'}, (err)=>{
+                if (err){
+                    console.log(err.message);
+                }
+                res.render('home/article', {articles: category.articles})
+            });
+        });
     }
 };
